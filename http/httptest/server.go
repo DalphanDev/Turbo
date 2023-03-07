@@ -12,12 +12,14 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/http"
-	"net/http/internal/testcert"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/DalphanDev/Turbo/http/internal/testcert"
+
+	"github.com/DalphanDev/Turbo/http"
 
 	tls "github.com/refraction-networking/utls"
 )

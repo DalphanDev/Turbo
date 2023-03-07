@@ -9,8 +9,9 @@ import (
 	"bufio"
 	"bytes"
 	"io"
-	"net/http"
 	"strings"
+
+	"github.com/DalphanDev/Turbo/http"
 
 	tls "github.com/refraction-networking/utls"
 )

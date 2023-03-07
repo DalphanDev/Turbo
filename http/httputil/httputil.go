@@ -8,7 +8,8 @@ package httputil
 
 import (
 	"io"
-	"net/http/internal"
+
+	"github.com/DalphanDev/Turbo/http/internal"
 )
 
 // NewChunkedReader returns a new chunkedReader that translates the data read from r

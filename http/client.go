@@ -16,13 +16,14 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http/internal/ascii"
 	"net/url"
 	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/DalphanDev/Turbo/http/internal/ascii"
 
 	tls "github.com/refraction-networking/utls"
 )

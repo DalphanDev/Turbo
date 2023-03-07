@@ -10,9 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http/httptrace"
-	"net/http/internal"
-	"net/http/internal/ascii"
 	"net/textproto"
 	"reflect"
 	"sort"
@@ -20,6 +17,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/DalphanDev/Turbo/http/internal/ascii"
+
+	"github.com/DalphanDev/Turbo/http/internal"
+
+	"github.com/DalphanDev/Turbo/http/httptrace"
 
 	"golang.org/x/net/http/httpguts"
 )

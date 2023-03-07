@@ -12,11 +12,12 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
-	"net/http/cgi"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/DalphanDev/Turbo/http"
+	"github.com/DalphanDev/Turbo/http/cgi"
 )
 
 // request holds the state for an in-progress request. As soon as it's complete,

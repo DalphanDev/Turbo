@@ -17,14 +17,16 @@ import (
 	"mime"
 	"mime/multipart"
 	"net"
-	"net/http/httptrace"
-	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
 	urlpkg "net/url"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/DalphanDev/Turbo/http/internal/ascii"
+
+	"github.com/DalphanDev/Turbo/http/httptrace"
 
 	tls "github.com/refraction-networking/utls"
 

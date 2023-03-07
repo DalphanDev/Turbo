@@ -13,11 +13,12 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/DalphanDev/Turbo/http"
 
 	tls "github.com/refraction-networking/utls"
 )

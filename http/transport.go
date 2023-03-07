@@ -20,8 +20,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"net/http/httptrace"
-	"net/http/internal/ascii"
 	"net/textproto"
 	"net/url"
 	"reflect"
@@ -29,6 +27,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/DalphanDev/Turbo/http/internal/ascii"
+
+	"github.com/DalphanDev/Turbo/http/httptrace"
 
 	tls "github.com/refraction-networking/utls"
 
