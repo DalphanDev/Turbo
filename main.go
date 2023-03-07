@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
-	"net/http"
 	"net/url"
 
-	// "time"
-
+	"github.com/DalphanDev/Turbo/http"
 	"github.com/DalphanDev/Turbo/mimic"
 	tls "github.com/refraction-networking/utls"
 	"golang.org/x/net/http2"
@@ -32,10 +30,11 @@ func main() {
 
 	// targetAddress := "example.com:443"
 
-	targetURL := "https://eoobxe7m89qj9cl.m.pipedream.net"
+	// targetURL := "https://eoobxe7m89qj9cl.m.pipedream.net"
 	// targetURL := "https://purple.com/"
 	// targetURL := "https://www.google.com/"
 	// targetURL := "https://www.whatsmybrowser.org/"
+	targetURL := "https://example.com/"
 
 	// TEST API
 	// targetAddress := "https://eoobxe7m89qj9cl.m.pipedream.net"
@@ -144,28 +143,8 @@ func main() {
 		req.ProtoMajor = 1
 		req.ProtoMinor = 1
 
-		transport := &http.Transport{
-			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-				return uTlsConn, nil
-			},
-		}
-		client := &http.Client{Transport: transport}
-		resp, err = client.Do(req)
-		if err != nil {
-			fmt.Println("Error reading HTTP 1.1")
-			return
-		}
+		// create the transport
 
-		// err := req.Write(uTlsConn)
-		// if err != nil {
-		// 	fmt.Println("Error writing HTTP 1.1")
-		// 	return
-		// }
-		// resp, err = http.ReadResponse(bufio.NewReader(uTlsConn), req)
-		// if err != nil {
-		// 	fmt.Println("Error reading HTTP 1.1")
-		// 	return
-		// }
 	default:
 		fmt.Errorf("unsupported ALPN: %v", alpn)
 		return
@@ -182,8 +161,4 @@ func main() {
 
 func turbo() {
 
-}
-
-func getFingerprint(browser string) {
-	// Return the browser's fingerprint according to the map
 }
