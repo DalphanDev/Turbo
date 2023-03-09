@@ -505,9 +505,13 @@ func (t *Transport) alternateRoundTripper(req *Request) RoundTripper {
 
 // roundTrip implements a RoundTripper over HTTP.
 func (t *Transport) roundTrip(req *Request) (*Response, error) {
+	fmt.Println("roundTrip called!")
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
+	fmt.Println("nextProto called!")
 	ctx := req.Context()
+	fmt.Println("Request context: ", ctx)
 	trace := httptrace.ContextClientTrace(ctx)
+	fmt.Println("HTTP Trace: ", trace)
 
 	if req.URL == nil {
 		req.closeBody()
@@ -1337,6 +1341,7 @@ func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (co
 // and/or setting up TLS.  If this doesn't return an error, the persistConn
 // is ready to write requests to.
 func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persistConn, err error) {
+	fmt.Println("getConn called!")
 	req := treq.Request
 	trace := treq.trace
 	ctx := req.Context()
@@ -1455,14 +1460,17 @@ func (t *Transport) dialConnFor(w *wantConn) {
 	defer w.afterDial()
 
 	pc, err := t.dialConn(w.ctx, w.cm)
+	fmt.Println("dialConnFor", pc, err)
 	delivered := w.tryDeliver(pc, err)
 	if err == nil && (!delivered || pc.alt != nil) {
+		fmt.Println("Idk what this does here.")
 		// pconn was not passed to w,
 		// or it is HTTP/2 and can be shared.
 		// Add to the idle connection pool.
 		t.putOrCloseIdleConn(pc)
 	}
 	if err != nil {
+		fmt.Println("Some kind of dialConn err?")
 		t.decConnsPerHost(w.key)
 	}
 }
@@ -1591,13 +1599,15 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	}
 	if cm.scheme() == "https" && t.hasCustomTLSDialer() {
 		var err error
-		pconn.conn, err = t.customDialTLS(ctx, "tcp", cm.addr())
+		pconn.conn, err = t.customDialTLS(ctx, "tcp", cm.addr()) // 🚩 After dialTLS is called, this returns the tls connection.
 		if err != nil {
+			fmt.Println("Error in customDialTLS: ", err)
 			return nil, wrapErr(err)
 		}
 		if tc, ok := pconn.conn.(*tls.UConn); ok {
 			// Handshake here, in case DialTLS didn't. TLSNextProto below
 			// depends on it for knowing the connection state.
+			fmt.Println("Handshake here, in case DialTLS didn't. TLSNextProto below depends on it for knowing the connection state.")
 			if trace != nil && trace.TLSHandshakeStart != nil {
 				trace.TLSHandshakeStart()
 			}
@@ -1631,10 +1641,13 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		}
 	}
 
+	fmt.Println("Handling proxy setup step...")
+
 	// Proxy setup.
 	switch {
 	case cm.proxyURL == nil:
 		// Do nothing. Not using a proxy.
+		fmt.Println("Not using a proxy...")
 	case cm.proxyURL.Scheme == "socks5":
 		conn := pconn.conn
 		d := socksNewDialer("tcp", conn.RemoteAddr().String())
@@ -1739,12 +1752,14 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	}
 
 	if cm.proxyURL != nil && cm.targetScheme == "https" {
+		fmt.Println("Adding TLS")
 		if err := pconn.addTLS(ctx, cm.tlsHost(), trace); err != nil {
 			return nil, err
 		}
 	}
 
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
+		fmt.Println("Something idk is happening!")
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
 			alt := next(cm.targetAddr, pconn.conn.(*tls.UConn))
 			if e, ok := alt.(erringRoundTripper); ok {
@@ -1757,6 +1772,8 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 
 	pconn.br = bufio.NewReaderSize(pconn, t.readBufferSize())
 	pconn.bw = bufio.NewWriterSize(persistConnWriter{pconn}, t.writeBufferSize())
+
+	fmt.Println(pconn)
 
 	go pconn.readLoop()
 	go pconn.writeLoop()

@@ -157,16 +157,23 @@ func main() {
 				Timeout: 10 * time.Second,
 			}).Dial,
 			TLSHandshakeTimeout: 10 * time.Second,
-			DialTLS: DialWithUTLS,
+			// DialTLS: DialWithUTLS, // Comment this out to test uTLS vs native TLS
 		}
+
+		fmt.Println("uTLS transport created!")
 
 		client := &http.Client{
 			Transport: transport,
 		}
+
+		fmt.Println("uTLS client created!")
 		
 		resp, err := client.Do(req)
 		if err != nil {
 			// handle error
+			fmt.Println("Error sending HTTP 1.1 request...")
+			fmt.Println(err)
+			return
 		}
 		defer resp.Body.Close()
 
@@ -225,7 +232,7 @@ func DialWithUTLS(network, addr string) (net.Conn, error) {
 
 	fmt.Println("tlsConn created!")
 
-	defer tlsConn.Close()
+	// defer tlsConn.Close() We use this to close our connection after our request is complete.
 	err = tlsConn.ApplyPreset(modernChrome)
 
 	if err != nil {
