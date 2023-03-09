@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DalphanDev/Turbo/http"
+	"github.com/DalphanDev/Turbo/http/httptrace"
 	"github.com/DalphanDev/Turbo/mimic"
 	tls "github.com/refraction-networking/utls"
 )
@@ -119,6 +120,24 @@ func main() {
 	req.Header.Add("upgrade-insecure-requests", "1")
 	req.Header.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36")
 
+	trace := &httptrace.ClientTrace{
+        TLSHandshakeStart: func() {
+            fmt.Println("TLS handshake started")
+        },
+        TLSHandshakeDone: func(cs tls.ConnectionState, err error) {
+            fmt.Println("TLS handshake done")
+            if err != nil {
+                fmt.Println("TLS handshake error:", err)
+            } else {
+                fmt.Println("TLS handshake cipher suite:", cs.CipherSuite)
+                fmt.Println("TLS handshake version:", cs.Version)
+                fmt.Println("TLS handshake verified chains:", len(cs.VerifiedChains))
+            }
+        },
+    }
+
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+
 	fmt.Println(req)
 
 	fmt.Println("ALPN PROTOCOL: ", alpn)
@@ -157,7 +176,7 @@ func main() {
 				Timeout: 10 * time.Second,
 			}).Dial,
 			TLSHandshakeTimeout: 10 * time.Second,
-			// DialTLS: DialWithUTLS, // Comment this out to test uTLS vs native TLS
+			DialTLS: DialWithUTLS, // Comment this out to test uTLS vs native TLS
 		}
 
 		fmt.Println("uTLS transport created!")
@@ -202,7 +221,7 @@ func main() {
 
 func DialWithUTLS(network, addr string) (net.Conn, error) {
 
-	fmt.Println("DialWithUTLS Called!")
+	// fmt.Println("DialWithUTLS Called!")
 
     // create a dialer object
     dialer := &net.Dialer{
@@ -211,26 +230,27 @@ func DialWithUTLS(network, addr string) (net.Conn, error) {
         DualStack: true,
     }
 
-	fmt.Println("Dialer Created!")
+	// fmt.Println("Dialer Created!")
 
     // establish a TCP connection to the remote server
     conn, err := dialer.Dial(network, addr)
     if err != nil {
- 
+		fmt.Println("TCP Connection Failed!")
+		return nil, err
     }
 
-	fmt.Println("TCP Connection Established!")
+	// fmt.Println("TCP Connection Established!")
 
 	modernChrome := mimic.NewChromeMimic.ClientHello()
 
-	fmt.Println("modernChrome fingerprint fetched!")
+	// fmt.Println("modernChrome fingerprint fetched!")
 
 	tlsConn := tls.UClient(conn, &tls.Config{
 		ServerName:         addr,
 		InsecureSkipVerify: true,
 	}, tls.HelloCustom)
 
-	fmt.Println("tlsConn created!")
+	// fmt.Println("tlsConn created!")
 
 	// defer tlsConn.Close() We use this to close our connection after our request is complete.
 	err = tlsConn.ApplyPreset(modernChrome)
@@ -246,9 +266,9 @@ func DialWithUTLS(network, addr string) (net.Conn, error) {
         fmt.Println("TLS Handshake Failed!")
     }
 
-	fmt.Println("TLS Handshake Completed!")
+	// fmt.Println("TLS Handshake Completed!")
 
-	fmt.Println("Returning TLS Connection!")
+	// fmt.Println("Returning TLS Connection!")
 
     return tlsConn.Conn, nil
 }

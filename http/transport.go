@@ -586,8 +586,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		// host (for http or https), the http proxy, or the http proxy
 		// pre-CONNECTed to https server. In any case, we'll be ready
 		// to send it requests.
-		pconn, err := t.getConn(treq, cm)
+		pconn, err := t.getConn(treq, cm) // Gets a connection to the server
 		if err != nil {
+			fmt.Println("Error getting connection: ", err)
 			t.setReqCanceler(cancelKey, nil)
 			req.closeBody()
 			return nil, err
@@ -596,10 +597,14 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		var resp *Response
 		if pconn.alt != nil {
 			// HTTP/2 path.
+			fmt.Println("HTTP/2 path called!")
 			t.setReqCanceler(cancelKey, nil) // not cancelable with CancelRequest
 			resp, err = pconn.alt.RoundTrip(req)
 		} else {
+			// HTTP/1.1 path.
+			fmt.Println("HTTP/1.1 path called!")
 			resp, err = pconn.roundTrip(treq)
+			fmt.Println("Response: ", resp)
 		}
 		if err == nil {
 			resp.Request = origReq
@@ -1600,6 +1605,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	if cm.scheme() == "https" && t.hasCustomTLSDialer() {
 		var err error
 		pconn.conn, err = t.customDialTLS(ctx, "tcp", cm.addr()) // 🚩 After dialTLS is called, this returns the tls connection.
+		// ^ This is the line that is causing the problem.
 		if err != nil {
 			fmt.Println("Error in customDialTLS: ", err)
 			return nil, wrapErr(err)
