@@ -16,12 +16,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"internal/godebug"
 	"io"
 	"log"
 	"net"
 	"net/textproto"
 	"net/url"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -363,7 +363,7 @@ func (t *Transport) hasCustomTLSDialer() bool {
 // It must be called via t.nextProtoOnce.Do.
 func (t *Transport) onceSetNextProtoDefaults() {
 	t.tlsNextProtoWasNil = (t.TLSNextProto == nil)
-	if godebug.Get("http2client") == "0" {
+	if strings.Contains(os.Getenv("GODEBUG"), "http2client=0") {
 		return
 	}
 

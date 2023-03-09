@@ -8,11 +8,12 @@ package httptrace
 
 import (
 	"context"
-	"internal/nettrace"
 	"net"
 	"net/textproto"
 	"reflect"
 	"time"
+
+	"github.com/DalphanDev/Turbo/internal/nettrace"
 
 	tls "github.com/refraction-networking/utls"
 )

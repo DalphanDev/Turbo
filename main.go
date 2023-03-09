@@ -19,7 +19,7 @@ import (
 // 	Cookies   string
 // }
 
-func main() {
+func old_main() {
 	// Test a turbo request!
 
 	// What are the steps to making a request with uTLS?
