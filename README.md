@@ -13,3 +13,7 @@ makes it easy to edit the client hello packet and http client. The issue is alth
 fits our needs, it still uses go's default http library by default. This http library does not have support for actually
 using the uTLS client, and causes errors if we try to do so. Therefore, we need to actually have a copy of the http library,
 and edit it to use uTLS instead of go's default crypto/tls library.
+
+When making a request in Go the normal way, you actually create something called an HTTP transport. This transport is pretty much
+a handler for your http requests. What we need to do is edit this transport to work for our uTLS requests. It doesn't have to be that different,
+just different enough to have us use a different client hello packet.

@@ -193,7 +193,7 @@ func main() {
 	}
 }
 
-func DialWithUTLS(network, addr string) (*tls.UConn, error) {
+func DialWithUTLS(network, addr string) (net.Conn, error) {
 
 	fmt.Println("DialWithUTLS Called!")
 
@@ -242,5 +242,6 @@ func DialWithUTLS(network, addr string) (*tls.UConn, error) {
 	fmt.Println("TLS Handshake Completed!")
 
 	fmt.Println("Returning TLS Connection!")
-    return tlsConn, nil
+
+    return tlsConn.Conn, nil
 }
