@@ -1,9 +1,12 @@
 package main
 
 import (
+	"compress/gzip"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/url"
+	"time"
 
 	"github.com/DalphanDev/Turbo/http"
 	"github.com/DalphanDev/Turbo/mimic"
@@ -23,7 +26,6 @@ func main() {
 	// What are the steps to making a request with uTLS?
 
 	// Well first, let's try and fetch a preset uTLS fingerprint.
-	// fingerprint := tls.HelloChrome_62
 	modernChrome := mimic.NewChromeMimic.ClientHello()
 
 	// targetAddress := "example.com:443"
@@ -75,6 +77,8 @@ func main() {
 	defer uTlsConn.Close()
 	err = uTlsConn.ApplyPreset(modernChrome)
 
+	fmt.Println(uTlsConn)
+
 	if err != nil {
 		fmt.Printf("uTlsConn.Handshake() error: %+v", err)
 		return
@@ -88,9 +92,9 @@ func main() {
 	}
 
 	fmt.Printf("Successful handshake made to %s\n", targetAddress)
-	fmt.Printf("ALPN PROTOCOL: %s\n", uTlsConn.HandshakeState.ServerHello.AlpnProtocol) // For some reason doesn't print the ALPN protocol.
+	fmt.Printf("ALPN PROTOCOL: %s\n", uTlsConn.HandshakeState.ServerHello.AlpnProtocol)
 	alpn := uTlsConn.HandshakeState.ServerHello.AlpnProtocol
-	// ^ Looking further, not all servers return an ALPN Protocol. If it is empty, default to HTTP 1.1
+	// FYI, not all servers return an ALPN Protocol. If it is empty, default to HTTP 1.1
 
 	// The next step is to send an HTTP request over the established TLS connection.
 
@@ -148,9 +152,95 @@ func main() {
 		fmt.Println("HTTP/1.1")
 
 		// create the transport
+		transport := &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout: 10 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout: 10 * time.Second,
+			DialTLS: DialWithUTLS,
+		}
+
+		client := &http.Client{
+			Transport: transport,
+		}
+		
+		resp, err := client.Do(req)
+		if err != nil {
+			// handle error
+		}
+		defer resp.Body.Close()
+
+		fmt.Println(resp.Header.Get("Content-Encoding"))
+
+		if resp.Header.Get("Content-Encoding") == "gzip" {
+			gz, err := gzip.NewReader(resp.Body)
+			if err != nil {
+				// handle error
+			}
+			defer gz.Close()
+			body, err := ioutil.ReadAll(gz)
+			if err != nil {
+				// handle error
+			}
+			// Use body for the decompressed response
+
+			fmt.Println(string(body))
+		}
 
 	default:
 		fmt.Errorf("unsupported ALPN: %v", alpn)
 		return
 	}
+}
+
+func DialWithUTLS(network, addr string) (*tls.UConn, error) {
+
+	fmt.Println("DialWithUTLS Called!")
+
+    // create a dialer object
+    dialer := &net.Dialer{
+        Timeout:   time.Second * 30,
+        KeepAlive: time.Second * 30,
+        DualStack: true,
+    }
+
+	fmt.Println("Dialer Created!")
+
+    // establish a TCP connection to the remote server
+    conn, err := dialer.Dial(network, addr)
+    if err != nil {
+ 
+    }
+
+	fmt.Println("TCP Connection Established!")
+
+	modernChrome := mimic.NewChromeMimic.ClientHello()
+
+	fmt.Println("modernChrome fingerprint fetched!")
+
+	tlsConn := tls.UClient(conn, &tls.Config{
+		ServerName:         addr,
+		InsecureSkipVerify: true,
+	}, tls.HelloCustom)
+
+	fmt.Println("tlsConn created!")
+
+	defer tlsConn.Close()
+	err = tlsConn.ApplyPreset(modernChrome)
+
+	if err != nil {
+		fmt.Printf("uTLSConn generation error: %+v", err)
+	}
+
+    // perform the uTLS handshake
+    err = tlsConn.Handshake()
+    if err != nil {
+        conn.Close()
+        fmt.Println("TLS Handshake Failed!")
+    }
+
+	fmt.Println("TLS Handshake Completed!")
+
+	fmt.Println("Returning TLS Connection!")
+    return tlsConn, nil
 }

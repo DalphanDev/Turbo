@@ -163,7 +163,7 @@ type Transport struct {
 	// Deprecated: Use DialTLSContext instead, which allows the transport
 	// to cancel dials as soon as they are no longer needed.
 	// If both are set, DialTLSContext takes priority.
-	DialTLS func(network, addr string) (net.Conn, error)
+	DialTLS func(network, addr string) (*tls.UConn, error)
 
 	// TLSClientConfig specifies the TLS configuration to use with
 	// tls.Client.
@@ -1316,16 +1316,22 @@ func (q *wantConnQueue) cleanFront() (cleaned bool) {
 	}
 }
 
-func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (conn net.Conn, err error) {
+func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (conn *tls.UConn, err error) {
+	fmt.Println("customDialTLS called!")
+	fmt.Println("network: ", network)
+	fmt.Println("addr: ", addr)
 	if t.DialTLSContext != nil {
-		conn, err = t.DialTLSContext(ctx, network, addr)
+		fmt.Println("Using DialTLSContext()")
+		// conn, err = t.DialTLSContext(ctx, network, addr)
 	} else {
+		fmt.Println("Using DialTLS()")
 		conn, err = t.DialTLS(network, addr)
 	}
 	if conn == nil && err == nil {
 		err = errors.New("net/http: Transport.DialTLS or DialTLSContext returned (nil, nil)")
 	}
-	return
+	fmt.Println("conn: ", conn)
+	return conn, err
 }
 
 // getConn dials and creates a new persistConn to the target as
