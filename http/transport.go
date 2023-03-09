@@ -1602,6 +1602,10 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		}
 		return err
 	}
+
+	fmt.Println(cm.scheme())
+	fmt.Println(t.hasCustomTLSDialer())
+
 	if cm.scheme() == "https" && t.hasCustomTLSDialer() {
 		var err error
 		pconn.conn, err = t.customDialTLS(ctx, "tcp", cm.addr()) // 🚩 After dialTLS is called, this returns the tls connection.
