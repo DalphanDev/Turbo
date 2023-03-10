@@ -1782,12 +1782,13 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 
 	fmt.Println("Finished proxy setup!")
 	// fmt.Println("pconn.tlsState: ", pconn.tlsState)
-	fmt.Println("pconn negotiated protocol: ", pconn.tlsState.NegotiatedProtocol)
 
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
 		fmt.Println("TLSNextProto() was called!")
-		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
-			alt := next(cm.targetAddr, pconn.conn.(*tls.UConn))
+		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok { // This returns a roundtripper to handle the request.
+			fmt.Println("Negotiated protocol is: ", s.NegotiatedProtocol)
+			alt := next(cm.targetAddr, pconn.conn.(*tls.UConn)) // This uses the roundtripper to handle the request.
+			fmt.Println("alt: ", alt) // 🛑 This line is never reached.
 			if e, ok := alt.(erringRoundTripper); ok {
 				// pconn.conn was closed by next (http2configureTransports.upgradeFn).
 				return nil, e.RoundTripErr()
