@@ -51,8 +51,6 @@ func main() {
 
 	targetAddress := net.JoinHostPort(serverName, "443")
 
-	fmt.Println(targetAddress)
-
 	// The first step in making a request to any server, is establishing a TCP connection.
 	tcpConn, err := net.Dial("tcp", targetAddress)
 	if err != nil {
@@ -77,8 +75,6 @@ func main() {
 
 	defer uTlsConn.Close()
 	err = uTlsConn.ApplyPreset(modernChrome)
-
-	fmt.Println(uTlsConn)
 
 	if err != nil {
 		fmt.Printf("uTlsConn.Handshake() error: %+v", err)
@@ -219,7 +215,7 @@ func main() {
 	}
 }
 
-func DialWithUTLS(network, addr string) (net.Conn, error) {
+func DialWithUTLS(network, addr string) (*tls.UConn, error) {
 
 	// fmt.Println("DialWithUTLS Called!")
 
@@ -236,7 +232,6 @@ func DialWithUTLS(network, addr string) (net.Conn, error) {
 	conn, err := dialer.Dial(network, addr)
 	if err != nil {
 		fmt.Println("TCP Connection Failed!")
-		return nil, err
 	}
 
 	// fmt.Println("TCP Connection Established!")
@@ -270,10 +265,5 @@ func DialWithUTLS(network, addr string) (net.Conn, error) {
 
 	// fmt.Println("Returning TLS Connection!")
 
-	fmt.Println("tlsConn: ", tlsConn)
-	fmt.Println("tlsConn.NetConn(): ", tlsConn.NetConn())
-	fmt.Println("tlsConn.conn.NetConn(): ", tlsConn.Conn.NetConn())
-
-	// return tlsConn.Conn, nil
-	return tlsConn.NetConn(), nil
+	return tlsConn, nil
 }

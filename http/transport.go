@@ -163,7 +163,7 @@ type Transport struct {
 	// Deprecated: Use DialTLSContext instead, which allows the transport
 	// to cancel dials as soon as they are no longer needed.
 	// If both are set, DialTLSContext takes priority.
-	DialTLS func(network, addr string) (net.Conn, error)
+	DialTLS func(network, addr string) (*tls.UConn, error)
 
 	// TLSClientConfig specifies the TLS configuration to use with
 	// tls.Client.
@@ -1325,12 +1325,12 @@ func (q *wantConnQueue) cleanFront() (cleaned bool) {
 	}
 }
 
-func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (conn net.Conn, err error) {
+func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (conn *tls.UConn, err error) {
 	fmt.Println("customDialTLS called!")
 	fmt.Println("network: ", network)
 	fmt.Println("addr: ", addr)
 	if t.DialTLSContext != nil {
-		conn, err = t.DialTLSContext(ctx, network, addr)
+		// conn, err = t.DialTLSContext(ctx, network, addr) // This should never run
 	} else {
 		fmt.Println("Using DialTLS()")
 		conn, err = t.DialTLS(network, addr)
@@ -1612,12 +1612,15 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		pconn.conn, err = t.customDialTLS(ctx, "tcp", cm.addr()) // 🚩 After dialTLS is called, this returns the tls connection.
 		// ^ This is the line that is causing the problem.
 
-		fmt.Println("Broken Transport Connection: ", pconn.conn)
-
 		if err != nil {
 			fmt.Println("Error in customDialTLS: ", err)
 			return nil, wrapErr(err)
 		}
+
+		fmt.Println("pconn.conn: ", pconn.conn)
+
+		// fmt.Println("TCPConn:", pconn.conn.(*net.TCPConn))
+
 		if tc, ok := pconn.conn.(*tls.UConn); ok {
 			// Handshake here, in case DialTLS didn't. TLSNextProto below
 			// depends on it for knowing the connection state.
@@ -1637,6 +1640,8 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 				trace.TLSHandshakeDone(cs, nil)
 			}
 			pconn.tlsState = &cs
+		} else {
+			fmt.Println("Mismatched typing")
 		}
 	} else {
 		// Working code!
