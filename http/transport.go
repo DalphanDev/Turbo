@@ -1607,9 +1607,13 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	fmt.Println(t.hasCustomTLSDialer())
 
 	if cm.scheme() == "https" && t.hasCustomTLSDialer() {
+		// Non working code!
 		var err error
 		pconn.conn, err = t.customDialTLS(ctx, "tcp", cm.addr()) // 🚩 After dialTLS is called, this returns the tls connection.
 		// ^ This is the line that is causing the problem.
+
+		fmt.Println("Broken Transport Connection: ", pconn.conn)
+
 		if err != nil {
 			fmt.Println("Error in customDialTLS: ", err)
 			return nil, wrapErr(err)
@@ -1635,11 +1639,15 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			pconn.tlsState = &cs
 		}
 	} else {
+		// Working code!
 		conn, err := t.dial(ctx, "tcp", cm.addr())
 		if err != nil {
 			return nil, wrapErr(err)
 		}
 		pconn.conn = conn
+
+		fmt.Println("Working Transport Connection: ", pconn.conn)
+
 		if cm.scheme() == "https" {
 			var firstTLSHost string
 			if firstTLSHost, _, err = net.SplitHostPort(cm.addr()); err != nil {

@@ -121,20 +121,20 @@ func main() {
 	req.Header.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36")
 
 	trace := &httptrace.ClientTrace{
-        TLSHandshakeStart: func() {
-            fmt.Println("TLS handshake started")
-        },
-        TLSHandshakeDone: func(cs tls.ConnectionState, err error) {
-            fmt.Println("TLS handshake done")
-            if err != nil {
-                fmt.Println("TLS handshake error:", err)
-            } else {
-                fmt.Println("TLS handshake cipher suite:", cs.CipherSuite)
-                fmt.Println("TLS handshake version:", cs.Version)
-                fmt.Println("TLS handshake verified chains:", len(cs.VerifiedChains))
-            }
-        },
-    }
+		TLSHandshakeStart: func() {
+			fmt.Println("TLS handshake started")
+		},
+		TLSHandshakeDone: func(cs tls.ConnectionState, err error) {
+			fmt.Println("TLS handshake done")
+			if err != nil {
+				fmt.Println("TLS handshake error:", err)
+			} else {
+				fmt.Println("TLS handshake cipher suite:", cs.CipherSuite)
+				fmt.Println("TLS handshake version:", cs.Version)
+				fmt.Println("TLS handshake verified chains:", len(cs.VerifiedChains))
+			}
+		},
+	}
 
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
 
@@ -176,7 +176,7 @@ func main() {
 				Timeout: 10 * time.Second,
 			}).Dial,
 			TLSHandshakeTimeout: 10 * time.Second,
-			DialTLS: DialWithUTLS, // Comment this out to test uTLS vs native TLS
+			DialTLS:             DialWithUTLS, // Comment this out to test uTLS vs native TLS
 		}
 
 		fmt.Println("uTLS transport created!")
@@ -186,7 +186,7 @@ func main() {
 		}
 
 		fmt.Println("uTLS client created!")
-		
+
 		resp, err := client.Do(req)
 		if err != nil {
 			// handle error
@@ -223,21 +223,21 @@ func DialWithUTLS(network, addr string) (net.Conn, error) {
 
 	// fmt.Println("DialWithUTLS Called!")
 
-    // create a dialer object
-    dialer := &net.Dialer{
-        Timeout:   time.Second * 30,
-        KeepAlive: time.Second * 30,
-        DualStack: true,
-    }
+	// create a dialer object
+	dialer := &net.Dialer{
+		Timeout:   time.Second * 30,
+		KeepAlive: time.Second * 30,
+		DualStack: true,
+	}
 
 	// fmt.Println("Dialer Created!")
 
-    // establish a TCP connection to the remote server
-    conn, err := dialer.Dial(network, addr)
-    if err != nil {
+	// establish a TCP connection to the remote server
+	conn, err := dialer.Dial(network, addr)
+	if err != nil {
 		fmt.Println("TCP Connection Failed!")
 		return nil, err
-    }
+	}
 
 	// fmt.Println("TCP Connection Established!")
 
@@ -259,16 +259,21 @@ func DialWithUTLS(network, addr string) (net.Conn, error) {
 		fmt.Printf("uTLSConn generation error: %+v", err)
 	}
 
-    // perform the uTLS handshake
-    err = tlsConn.Handshake()
-    if err != nil {
-        conn.Close()
-        fmt.Println("TLS Handshake Failed!")
-    }
+	// perform the uTLS handshake
+	err = tlsConn.Handshake()
+	if err != nil {
+		conn.Close()
+		fmt.Println("TLS Handshake Failed!")
+	}
 
 	// fmt.Println("TLS Handshake Completed!")
 
 	// fmt.Println("Returning TLS Connection!")
 
-    return tlsConn.Conn, nil
+	fmt.Println("tlsConn: ", tlsConn)
+	fmt.Println("tlsConn.NetConn(): ", tlsConn.NetConn())
+	fmt.Println("tlsConn.conn.NetConn(): ", tlsConn.Conn.NetConn())
+
+	// return tlsConn.Conn, nil
+	return tlsConn.NetConn(), nil
 }
