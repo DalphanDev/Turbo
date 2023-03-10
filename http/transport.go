@@ -1619,16 +1619,16 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 
 		fmt.Println("pconn.conn: ", pconn.conn)
 
-		// fmt.Println("TCPConn:", pconn.conn.(*net.TCPConn))
-
 		if tc, ok := pconn.conn.(*tls.UConn); ok {
 			// Handshake here, in case DialTLS didn't. TLSNextProto below
 			// depends on it for knowing the connection state.
 			fmt.Println("Handshake here, in case DialTLS didn't. TLSNextProto below depends on it for knowing the connection state.")
 			if trace != nil && trace.TLSHandshakeStart != nil {
+				fmt.Println("TLSHandshakeStart()")
 				trace.TLSHandshakeStart()
 			}
 			if err := tc.HandshakeContext(ctx); err != nil {
+				fmt.Println("pconn.conn.close()")
 				go pconn.conn.Close()
 				if trace != nil && trace.TLSHandshakeDone != nil {
 					trace.TLSHandshakeDone(tls.ConnectionState{}, err)
@@ -1637,11 +1637,10 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			}
 			cs := tc.ConnectionState()
 			if trace != nil && trace.TLSHandshakeDone != nil {
+				fmt.Println("TLSHandshakeDone()")
 				trace.TLSHandshakeDone(cs, nil)
 			}
 			pconn.tlsState = &cs
-		} else {
-			fmt.Println("Mismatched typing")
 		}
 	} else {
 		// Working code!
@@ -1781,6 +1780,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		}
 	}
 
+	fmt.Println("Finished proxy setup!")
+	fmt.Println("pconn.tlsState: ", pconn.tlsState)
+
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
 		fmt.Println("Something idk is happening!")
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
@@ -1795,8 +1797,6 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 
 	pconn.br = bufio.NewReaderSize(pconn, t.readBufferSize())
 	pconn.bw = bufio.NewWriterSize(persistConnWriter{pconn}, t.writeBufferSize())
-
-	fmt.Println(pconn)
 
 	go pconn.readLoop()
 	go pconn.writeLoop()
