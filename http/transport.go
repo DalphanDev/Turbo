@@ -1781,10 +1781,11 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	}
 
 	fmt.Println("Finished proxy setup!")
-	fmt.Println("pconn.tlsState: ", pconn.tlsState)
+	// fmt.Println("pconn.tlsState: ", pconn.tlsState)
+	fmt.Println("pconn negotiated protocol: ", pconn.tlsState.NegotiatedProtocol)
 
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
-		fmt.Println("Something idk is happening!")
+		fmt.Println("TLSNextProto() was called!")
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
 			alt := next(cm.targetAddr, pconn.conn.(*tls.UConn))
 			if e, ok := alt.(erringRoundTripper); ok {

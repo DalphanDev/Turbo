@@ -3,7 +3,7 @@ package main
 import (
 	// "compress/gzip"
 	"fmt"
-	// "io/ioutil"
+	"io/ioutil"
 	"net"
 	"net/url"
 	"time"
@@ -30,25 +30,28 @@ func main() {
 
 	fmt.Println(serverName)
 
-	targetAddress := net.JoinHostPort(serverName, "443")
-
-	// The first step in making a request to any server, is establishing a TCP connection.
-	tcpConn, err := net.Dial("tcp", targetAddress)
-	if err != nil {
-		panic(err)
-	} else {
-		fmt.Printf("Successfully established a TCP connection to %s\n", targetAddress)
-	}
-
 	// Make an http transport using our custom Dial TLS function.
 
 	transport := &http.Transport{
-		DialTLS: DialWithUTLS, // Comment this out to test uTLS vs native TLS
+		// DialTLS: DialWithUTLS, // Comment this out to test uTLS vs native TLS
 	}
 
 	client := &http.Client{
 		Transport: transport,
 	}
+
+	resp, err := client.Get(targetURL)
+	if err != nil {
+    	panic(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+    	panic(err)
+	}
+
+	fmt.Println(string(body))
 }
 
 func DialWithUTLS(network, addr string) (*tls.UConn, error) {
