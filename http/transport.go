@@ -1560,7 +1560,8 @@ func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptr
 
 	// [Turbo] Edit tlsConn to use uTLS
 	cfg.InsecureSkipVerify = true
-	tlsConn := tls.UClient(plainConn, cfg, tls.HelloChrome_Auto)
+	// tlsConn := tls.UClient(plainConn, cfg, tls.HelloChrome_Auto)
+	tlsConn := tls.UClient(plainConn, cfg, tls.HelloFirefox_105)
 
 	fmt.Println(tlsConn)
 
