@@ -17,8 +17,12 @@ func main() {
 
 	// What are the steps to making a request with uTLS?
 
-	// targetURL := "https://example.com/"
-	targetURL := "https://www.whatsmybrowser.org/"
+	// targetURL := "https://example.com/"  ✅
+	// targetURL := "https://www.whatsmybrowser.org/"  ✅
+	// targetURL := "https://twitter.com/home" ✅
+	// targetURL := "https://kith.com" ✅
+	// targetURL := "https://cncpts.com" ❌ Access Denied. Handshake must not look like a browser.
+	targetURL := "https://cncpts.com"
 
 	parsedURL, err := url.Parse(targetURL)
 	if err != nil {
@@ -34,8 +38,6 @@ func main() {
 	fmt.Println(targetAddress)
 
 	transport := &http.Transport{}
-
-	fmt.Println(transport.DialTLS)
 
 	client := &http.Client{
 		Transport: transport,
@@ -80,11 +82,13 @@ func main() {
 		gz, err := gzip.NewReader(resp.Body)
 		if err != nil {
 			// handle error
+			fmt.Println("Error reading gzip: ", err)
 		}
 		defer gz.Close()
 		body, err := ioutil.ReadAll(gz)
 		if err != nil {
 			// handle error
+			fmt.Println("Error2 reading gzip: ", err)
 		}
 		// Use body for the decompressed response
 
@@ -97,4 +101,6 @@ func main() {
 		}
 		fmt.Println(string(bodyBytes))
 	}
+
+	fmt.Println("Request Status Code: ", resp.StatusCode)
 }
