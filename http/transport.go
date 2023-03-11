@@ -595,6 +595,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 
 		var resp *Response
+
+		fmt.Println(pconn.alt)
+
 		if pconn.alt != nil {
 			// HTTP/2 path.
 			fmt.Println("HTTP/2 path called!")
@@ -1394,6 +1397,8 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 	case <-w.ready:
 		// Trace success but only for HTTP/1.
 		// HTTP/2 calls trace.GotConn itself.
+		fmt.Println(w)
+		fmt.Println("CHOP IT UP OFF THE PLATE: ", w.pc.alt)
 		if w.pc != nil && w.pc.alt == nil && trace != nil && trace.GotConn != nil {
 			trace.GotConn(httptrace.GotConnInfo{Conn: w.pc.conn, Reused: w.pc.isReused()})
 		}
@@ -1417,10 +1422,13 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 		}
 		return w.pc, w.err
 	case <-req.Cancel:
+		fmt.Println("Req cancelled: ", w.pc.alt)
 		return nil, errRequestCanceledConn
 	case <-req.Context().Done():
+		fmt.Println("Req done: ", w.pc.alt)
 		return nil, req.Context().Err()
 	case err := <-cancelc:
+		fmt.Println("Req cancelled2: ", w.pc.alt)
 		if err == errRequestCanceled {
 			err = errRequestCanceledConn
 		}
@@ -1465,7 +1473,7 @@ func (t *Transport) dialConnFor(w *wantConn) {
 	defer w.afterDial()
 
 	pc, err := t.dialConn(w.ctx, w.cm)
-	fmt.Println("dialConnFor", pc, err)
+	// fmt.Println("dialConnFor", pc, err)
 	delivered := w.tryDeliver(pc, err)
 	if err == nil && (!delivered || pc.alt != nil) {
 		fmt.Println("Idk what this does here.")
@@ -1535,6 +1543,8 @@ func (t *Transport) decConnsPerHost(key connectMethodKey) {
 // The remote endpoint's name may be overridden by TLSClientConfig.ServerName.
 func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptrace.ClientTrace) error {
 	// Initiate TLS and check remote host name against certificate.
+	fmt.Println("addTLS() called!")
+
 	cfg := cloneTLSConfig(pconn.t.TLSClientConfig)
 	if cfg.ServerName == "" {
 		cfg.ServerName = name
@@ -1542,8 +1552,17 @@ func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptr
 	if pconn.cacheKey.onlyH1 {
 		cfg.NextProtos = nil
 	}
+
+	fmt.Println(cfg.ServerName)
+
 	plainConn := pconn.conn
-	tlsConn := tls.Client(plainConn, cfg)
+	// tlsConn := tls.Client(plainConn, cfg) // This returns a tls.Conn. Should probably edit to be a tls.UConn.
+
+	// [Turbo] Edit tlsConn to use uTLS
+	cfg.InsecureSkipVerify = true
+	tlsConn := tls.UClient(plainConn, cfg, tls.HelloChrome_Auto)
+
+	fmt.Println(tlsConn)
 
 	// 🚩 WILL HAVE TO EDIT THIS FUNCTION TO WORK WITH UTLS
 
@@ -1617,7 +1636,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			return nil, wrapErr(err)
 		}
 
-		fmt.Println("pconn.conn: ", pconn.conn)
+		// fmt.Println("pconn.conn: ", pconn.conn)
 
 		if tc, ok := pconn.conn.(*tls.UConn); ok {
 			// Handshake here, in case DialTLS didn't. TLSNextProto below
@@ -1782,18 +1801,21 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 
 	fmt.Println("Finished proxy setup!")
 	// fmt.Println("pconn.tlsState: ", pconn.tlsState)
+	fmt.Println("Negotiated protocol is: ", pconn.tlsState.NegotiatedProtocol)
 
-	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
-		fmt.Println("TLSNextProto() was called!")
+	if s := pconn.tlsState; s != nil {
+		fmt.Println("TLSNextProto Map structure: ", t.TLSNextProto)
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok { // This returns a roundtripper to handle the request.
 			fmt.Println("Negotiated protocol is: ", s.NegotiatedProtocol)
 			alt := next(cm.targetAddr, pconn.conn.(*tls.UConn)) // This uses the roundtripper to handle the request.
-			fmt.Println("alt: ", alt) // 🛑 This line is never reached.
+			fmt.Println("alt: ", alt)                           // 🛑 This line is never reached.
 			if e, ok := alt.(erringRoundTripper); ok {
 				// pconn.conn was closed by next (http2configureTransports.upgradeFn).
 				return nil, e.RoundTripErr()
 			}
 			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
+		} else {
+			fmt.Println("Despair...")
 		}
 	}
 

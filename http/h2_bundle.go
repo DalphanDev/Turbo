@@ -6937,6 +6937,9 @@ func http2ConfigureTransports(t1 *Transport) (*http2Transport, error) {
 }
 
 func http2configureTransports(t1 *Transport) (*http2Transport, error) {
+
+	fmt.Println("Configuring HTTP2 transport...")
+
 	connPool := new(http2clientConnPool)
 	t2 := &http2Transport{
 		ConnPool: http2noDialClientConnPool{connPool},

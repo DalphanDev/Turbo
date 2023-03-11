@@ -16,7 +16,7 @@
 
 // func main() {
 // 	// Test a turbo request!
-
+// 	//
 // 	// What are the steps to making a request with uTLS?
 
 // 	targetURL := "https://example.com/"
@@ -42,13 +42,13 @@
 
 // 	resp, err := client.Get(targetURL)
 // 	if err != nil {
-//     	panic(err)
+// 		panic(err)
 // 	}
 // 	defer resp.Body.Close()
 
 // 	body, err := ioutil.ReadAll(resp.Body)
 // 	if err != nil {
-//     	panic(err)
+// 		panic(err)
 // 	}
 
 // 	fmt.Println(string(body))

@@ -30,25 +30,42 @@ func main() {
 
 	fmt.Println(serverName)
 
+	targetAddress := net.JoinHostPort(serverName, "443")
+
+	fmt.Println(targetAddress)
+
+	// Dial the server for a TCP connection. We need a TCP connection to create a UClient.
+	// dialer := &net.Dialer{}
+	// conn, err := dialer.Dial("tcp", targetAddress)
+
 	// Make an http transport using our custom Dial TLS function.
 
 	transport := &http.Transport{
 		// DialTLS: DialWithUTLS, // Comment this out to test uTLS vs native TLS
 	}
 
+	fmt.Println(transport.DialTLS)
+
 	client := &http.Client{
 		Transport: transport,
 	}
 
+	// config := &tls.Config{
+	// 	ServerName: serverName,
+	// 	InsecureSkipVerify: true,
+	// }
+
+	// tlsUconn := tls.UClient(conn, config, tls.HelloChrome_72)
+
 	resp, err := client.Get(targetURL)
 	if err != nil {
-    	panic(err)
+		panic(err)
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-    	panic(err)
+		panic(err)
 	}
 
 	fmt.Println(string(body))
@@ -68,7 +85,7 @@ func DialWithUTLS(network, addr string) (*tls.UConn, error) {
 		fmt.Println("TCP Connection Failed!")
 	}
 
-	chromeAuto := tls.HelloChrome_58
+	chromeAuto := tls.HelloChrome_72
 
 	tlsConn := tls.UClient(conn, &tls.Config{
 		ServerName:         addr,
