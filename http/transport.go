@@ -402,6 +402,10 @@ func (t *Transport) onceSetNextProtoDefaults() {
 	fmt.Println("Getting a http2 transport...")
 	t2, err := http2configureTransports(t)
 	fmt.Println("http2 transport: ", t2)
+
+	// [Turbo] - Edit the http2 transport to mimic chrome
+	t2.MaxHeaderListSize = 262144
+
 	if err != nil {
 		log.Printf("Error enabling Transport HTTP/2 support: %v", err)
 		return

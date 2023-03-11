@@ -21,7 +21,7 @@ func main() {
 	// targetURL := "https://www.whatsmybrowser.org/"  ✅
 	// targetURL := "https://twitter.com/home" ✅
 	// targetURL := "https://kith.com" ✅
-	targetURL := "https://cncpts.com" // ❌ Access Denied. Handshake must not look like a browser.
+	targetURL := "https://cncpts.com" // ✅ Access Granted. Had to edit the http2 transport to mimic google chrome!
 	// targetURL := "https://tools.scrapfly.io/api/fp/ja3?extended=1" // Use this to see what your ja3 is!
 
 	// Chrome fingerprint: [772,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,65281-0-16-27-11-18-13-5-23-43-10-45-17513-51-35,29-23-24,0]
