@@ -90,15 +90,11 @@ func main() {
 
 		fmt.Println(string(body))
 	} else if resp.Header.Get("Content-Encoding") == "br" {
-		fmt.Println("Using br")
-
-		fmt.Println(resp.Body)
-
 		br := brotli.NewReader(resp.Body)
-		body, err := ioutil.ReadAll(br)
+		bodyBytes, err := ioutil.ReadAll(br)
 		if err != nil {
-			// handle error
+			panic(err)
 		}
-		fmt.Println(body)
+		fmt.Println(string(bodyBytes))
 	}
 }
