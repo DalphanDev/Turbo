@@ -28,9 +28,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/DalphanDev/Turbo/http/internal/ascii"
-
 	"github.com/DalphanDev/Turbo/http/httptrace"
+	"github.com/DalphanDev/Turbo/http/internal/ascii"
+	"github.com/DalphanDev/Turbo/mimic"
 
 	tls "github.com/refraction-networking/utls"
 
@@ -399,7 +399,9 @@ func (t *Transport) onceSetNextProtoDefaults() {
 	if omitBundledHTTP2 {
 		return
 	}
+	fmt.Println("Getting a http2 transport...")
 	t2, err := http2configureTransports(t)
+	fmt.Println("http2 transport: ", t2)
 	if err != nil {
 		log.Printf("Error enabling Transport HTTP/2 support: %v", err)
 		return
@@ -1561,7 +1563,17 @@ func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptr
 	// [Turbo] Edit tlsConn to use uTLS
 	cfg.InsecureSkipVerify = true
 	// tlsConn := tls.UClient(plainConn, cfg, tls.HelloChrome_Auto)
-	tlsConn := tls.UClient(plainConn, cfg, tls.HelloFirefox_105)
+	// tlsConn := tls.UClient(plainConn, cfg, tls.HelloFirefox_105)
+	tlsConn := tls.UClient(plainConn, cfg, tls.HelloCustom)
+	tlsConn.ApplyPreset(mimic.NewChromeMimic.ClientHello())
+	// fingerprinter := &tls.Fingerprinter{}
+	// generatedSpec, err := fingerprinter.FingerprintClientHello(rawCapturedClientHelloBytes)
+	// if err != nil {
+	// 	panic(err)
+	//   }
+	//   if err := tlsConn.ApplyPreset(generatedSpec); err != nil {
+	// 	panic(err)
+	//   }
 
 	fmt.Println(tlsConn)
 
@@ -1807,9 +1819,8 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	if s := pconn.tlsState; s != nil {
 		fmt.Println("TLSNextProto Map structure: ", t.TLSNextProto)
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok { // This returns a roundtripper to handle the request.
-			fmt.Println("Negotiated protocol is: ", s.NegotiatedProtocol)
 			alt := next(cm.targetAddr, pconn.conn.(*tls.UConn)) // This uses the roundtripper to handle the request.
-			fmt.Println("alt: ", alt)                           // 🛑 This line is never reached.
+			fmt.Println("alt: ", alt)
 			if e, ok := alt.(erringRoundTripper); ok {
 				// pconn.conn was closed by next (http2configureTransports.upgradeFn).
 				return nil, e.RoundTripErr()

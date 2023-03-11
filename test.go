@@ -21,9 +21,11 @@ func main() {
 	// targetURL := "https://www.whatsmybrowser.org/"  ✅
 	// targetURL := "https://twitter.com/home" ✅
 	// targetURL := "https://kith.com" ✅
-	// targetURL := "https://cncpts.com" ❌ Access Denied. Handshake must not look like a browser.
-	targetURL := "https://cncpts.com"
+	targetURL := "https://cncpts.com" // ❌ Access Denied. Handshake must not look like a browser.
+	// targetURL := "https://tools.scrapfly.io/api/fp/ja3?extended=1" // Use this to see what your ja3 is!
 
+	// Chrome fingerprint: [772,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,65281-0-16-27-11-18-13-5-23-43-10-45-17513-51-35,29-23-24,0]
+	// Spoof fingerprint:  [772,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,45-51-17513-10-65281-5-43-23-0-16-11-35-13-27-18,29-23-24,0]
 	parsedURL, err := url.Parse(targetURL)
 	if err != nil {
 		panic(err)
@@ -36,6 +38,13 @@ func main() {
 	targetAddress := net.JoinHostPort(serverName, "443")
 
 	fmt.Println(targetAddress)
+
+	// t := &http2.Transport{
+	// 	TLSClientConfig: &tls.Config{
+	// 		NextProtos: []string{"h2"},
+	// 	},
+	// 	p,
+	// }
 
 	transport := &http.Transport{}
 
@@ -62,7 +71,7 @@ func main() {
 	req.Header.Add("sec-fetch-site", "none")
 	req.Header.Add("sec-fetch-user", "?1")
 	req.Header.Add("upgrade-insecure-requests", "1")
-	req.Header.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:105.0) Gecko/20100101 Firefox/105.0")
+	req.Header.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36")
 
 	// resp, err := client.Get(targetURL)
 	resp, err := client.Do(req)
@@ -76,7 +85,7 @@ func main() {
 	// 	panic(err)
 	// }
 
-	// fmt.Println(resp.Header.Get("Content-Encoding")) // Encoding type
+	fmt.Println(resp.Header.Get("Content-Encoding")) // Encoding type
 
 	if resp.Header.Get("Content-Encoding") == "gzip" {
 		gz, err := gzip.NewReader(resp.Body)
@@ -100,6 +109,12 @@ func main() {
 			panic(err)
 		}
 		fmt.Println(string(bodyBytes))
+	} else {
+		bytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(bytes))
 	}
 
 	fmt.Println("Request Status Code: ", resp.StatusCode)

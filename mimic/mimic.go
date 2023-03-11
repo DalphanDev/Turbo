@@ -1,6 +1,8 @@
 package mimic
 
 import (
+	"fmt"
+	"io"
 	"strings"
 
 	utls "github.com/refraction-networking/utls"
@@ -186,7 +188,9 @@ var (
 							// utls.PskModePlain, 🚩
 						}},
 					&utls.SCTExtension{},
-					&utls.SessionTicketExtension{},
+					&utls.SessionTicketExtension{
+						Session: &utls.ClientSessionState{},
+					},
 					&utls.SupportedVersionsExtension{
 						Versions: []uint16{
 							utls.GREASE_PLACEHOLDER,
@@ -211,6 +215,8 @@ var (
 						Body:  []byte{0x00},
 					},
 					&utls.UtlsPaddingExtension{GetPaddingLen: utls.BoringPaddingStyle},
+					// &FakeDelegatedCredentialsExtension{},
+					// &FakePreSharedKeyExtension{},
 				},
 				TLSVersMax: utls.VersionTLS13,
 				TLSVersMin: utls.VersionTLS10, // Experiment with VersionTLS12
@@ -367,4 +373,83 @@ func SetMimicSettings(browser string, settings Settings) {
 	browser = strings.ToLower(browser)
 
 	mimicSettingsMap[browser] = settings
+}
+
+const FakeDelegatedCredentials uint16 = 0x0022
+
+type FakeDelegatedCredentialsExtension struct {
+	*utls.GenericExtension
+	SignatureAlgorithms []utls.SignatureScheme
+}
+
+func (e *FakeDelegatedCredentialsExtension) Len() int {
+	fmt.Println("DelegatedCredentialsLength: ", 6+2*len(e.SignatureAlgorithms))
+	return 6 + 2*len(e.SignatureAlgorithms)
+}
+func (e *FakeDelegatedCredentialsExtension) Read(b []byte) (n int, err error) {
+	if len(b) < e.Len() {
+		return 0, io.ErrShortBuffer
+	}
+	offset := 0
+	appendUint16 := func(val uint16) {
+		b[offset] = byte(val >> 8)
+		b[offset+1] = byte(val & 0xff)
+		offset += 2
+	}
+	// Extension type
+	appendUint16(FakeDelegatedCredentials)
+	fmt.Println("Extension type: ", FakeDelegatedCredentials)
+	// Extension data length
+	appendUint16(uint16(len(e.SignatureAlgorithms)) + 2)
+	fmt.Println("Extension data length: ", uint16(len(e.SignatureAlgorithms))+2)
+	// Algorithms list length
+	appendUint16(uint16(len(e.SignatureAlgorithms)))
+	fmt.Println("Algorithms list length: ", uint16(len(e.SignatureAlgorithms))+2)
+	// Algorithms list
+	for _, a := range e.SignatureAlgorithms {
+		fmt.Println("Algorithms list: ", uint16(a))
+		appendUint16(uint16(a))
+	}
+	fmt.Println("Returning: ", e.Len())
+	return e.Len(), io.EOF
+}
+
+const FakePreSharedKey uint16 = 0x0029
+
+type FakePreSharedKeyExtension struct {
+	*utls.GenericExtension
+	SignatureAlgorithms []utls.SignatureScheme
+}
+
+func (e *FakePreSharedKeyExtension) Len() int {
+	fmt.Println("FakePreSharedKeyExtension: ", 6+2*len(e.SignatureAlgorithms))
+	return 6 + 2*len(e.SignatureAlgorithms)
+}
+
+func (e *FakePreSharedKeyExtension) Read(b []byte) (n int, err error) {
+	if len(b) < e.Len() {
+		return 0, io.ErrShortBuffer
+	}
+	offset := 0
+	appendUint16 := func(val uint16) {
+		b[offset] = byte(val >> 8)
+		b[offset+1] = byte(val & 0xff)
+		offset += 2
+	}
+	// Extension type
+	appendUint16(FakePreSharedKey)
+	fmt.Println("Extension type: ", FakePreSharedKey)
+	// Extension data length
+	appendUint16(uint16(len(e.SignatureAlgorithms)) + 2)
+	fmt.Println("Extension data length: ", uint16(len(e.SignatureAlgorithms))+2)
+	// Algorithms list length
+	appendUint16(uint16(len(e.SignatureAlgorithms)))
+	fmt.Println("Algorithms list length: ", uint16(len(e.SignatureAlgorithms))+2)
+	// Algorithms list
+	for _, a := range e.SignatureAlgorithms {
+		fmt.Println("Algorithms list: ", uint16(a))
+		appendUint16(uint16(a))
+	}
+	fmt.Println("Returning: ", e.Len())
+	return e.Len(), io.EOF
 }
