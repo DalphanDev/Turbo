@@ -7437,7 +7437,8 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 		err:     &cc.werr,
 	})
 	cc.br = bufio.NewReader(c)
-	cc.fr = http2NewFramer(cc.bw, cc.br)
+	cc.fr = http2NewFramer(cc.bw, cc.br) // 🚩
+	fmt.Println("WHY HELLO THERE!!!")
 	if t.CountError != nil {
 		cc.fr.countError = t.CountError
 	}
@@ -7457,9 +7458,14 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 		cc.tlsState = &state
 	}
 
+
+	// [turbo] - Edit these settings to mimic chrome
 	initialSettings := []http2Setting{
+		{ID: http2SettingHeaderTableSize, Val: 65536},
 		{ID: http2SettingEnablePush, Val: 0},
-		{ID: http2SettingInitialWindowSize, Val: http2transportDefaultStreamFlow},
+		{ID: http2SettingMaxConcurrentStreams, Val: 1000},
+		{ID: http2SettingInitialWindowSize, Val: 6291456},
+		{ID: http2SettingMaxHeaderListSize, Val: 262144},
 	}
 	if max := t.maxHeaderListSize(); max != 0 {
 		initialSettings = append(initialSettings, http2Setting{ID: http2SettingMaxHeaderListSize, Val: max})
