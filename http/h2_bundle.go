@@ -6938,8 +6938,6 @@ func http2ConfigureTransports(t1 *Transport) (*http2Transport, error) {
 
 func http2configureTransports(t1 *Transport) (*http2Transport, error) {
 
-	fmt.Println("Configuring HTTP2 transport...")
-
 	connPool := new(http2clientConnPool)
 	t2 := &http2Transport{
 		ConnPool: http2noDialClientConnPool{connPool},
@@ -7438,7 +7436,6 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 	})
 	cc.br = bufio.NewReader(c)
 	cc.fr = http2NewFramer(cc.bw, cc.br) // 🚩
-	fmt.Println("WHY HELLO THERE!!!")
 	if t.CountError != nil {
 		cc.fr.countError = t.CountError
 	}

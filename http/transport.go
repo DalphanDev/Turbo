@@ -399,9 +399,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
 	if omitBundledHTTP2 {
 		return
 	}
-	fmt.Println("Getting a http2 transport...")
 	t2, err := http2configureTransports(t)
-	fmt.Println("http2 transport: ", t2)
 
 	// [Turbo] - Edit the http2 transport to mimic chrome
 	t2.MaxHeaderListSize = 262144
@@ -511,13 +509,9 @@ func (t *Transport) alternateRoundTripper(req *Request) RoundTripper {
 
 // roundTrip implements a RoundTripper over HTTP.
 func (t *Transport) roundTrip(req *Request) (*Response, error) {
-	fmt.Println("roundTrip called!")
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
-	fmt.Println("nextProto called!")
 	ctx := req.Context()
-	fmt.Println("Request context: ", ctx)
 	trace := httptrace.ContextClientTrace(ctx)
-	fmt.Println("HTTP Trace: ", trace)
 
 	if req.URL == nil {
 		req.closeBody()
@@ -602,18 +596,13 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 
 		var resp *Response
 
-		fmt.Println(pconn.alt)
-
 		if pconn.alt != nil {
 			// HTTP/2 path.
-			fmt.Println("HTTP/2 path called!")
 			t.setReqCanceler(cancelKey, nil) // not cancelable with CancelRequest
 			resp, err = pconn.alt.RoundTrip(req)
 		} else {
 			// HTTP/1.1 path.
-			fmt.Println("HTTP/1.1 path called!")
 			resp, err = pconn.roundTrip(treq)
-			fmt.Println("Response: ", resp)
 		}
 		if err == nil {
 			resp.Request = origReq
@@ -1335,13 +1324,9 @@ func (q *wantConnQueue) cleanFront() (cleaned bool) {
 }
 
 func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (conn *tls.UConn, err error) {
-	fmt.Println("customDialTLS called!")
-	fmt.Println("network: ", network)
-	fmt.Println("addr: ", addr)
 	if t.DialTLSContext != nil {
 		// conn, err = t.DialTLSContext(ctx, network, addr) // This should never run
 	} else {
-		fmt.Println("Using DialTLS()")
 		conn, err = t.DialTLS(network, addr)
 	}
 	if conn == nil && err == nil {
@@ -1355,7 +1340,6 @@ func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (co
 // and/or setting up TLS.  If this doesn't return an error, the persistConn
 // is ready to write requests to.
 func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persistConn, err error) {
-	fmt.Println("getConn called!")
 	req := treq.Request
 	trace := treq.trace
 	ctx := req.Context()
@@ -1403,8 +1387,6 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 	case <-w.ready:
 		// Trace success but only for HTTP/1.
 		// HTTP/2 calls trace.GotConn itself.
-		fmt.Println(w)
-		fmt.Println("CHOP IT UP OFF THE PLATE: ", w.pc.alt)
 		if w.pc != nil && w.pc.alt == nil && trace != nil && trace.GotConn != nil {
 			trace.GotConn(httptrace.GotConnInfo{Conn: w.pc.conn, Reused: w.pc.isReused()})
 		}
@@ -1428,13 +1410,10 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (pc *persi
 		}
 		return w.pc, w.err
 	case <-req.Cancel:
-		fmt.Println("Req cancelled: ", w.pc.alt)
 		return nil, errRequestCanceledConn
 	case <-req.Context().Done():
-		fmt.Println("Req done: ", w.pc.alt)
 		return nil, req.Context().Err()
 	case err := <-cancelc:
-		fmt.Println("Req cancelled2: ", w.pc.alt)
 		if err == errRequestCanceled {
 			err = errRequestCanceledConn
 		}
@@ -1479,17 +1458,14 @@ func (t *Transport) dialConnFor(w *wantConn) {
 	defer w.afterDial()
 
 	pc, err := t.dialConn(w.ctx, w.cm)
-	// fmt.Println("dialConnFor", pc, err)
 	delivered := w.tryDeliver(pc, err)
 	if err == nil && (!delivered || pc.alt != nil) {
-		fmt.Println("Idk what this does here.")
 		// pconn was not passed to w,
 		// or it is HTTP/2 and can be shared.
 		// Add to the idle connection pool.
 		t.putOrCloseIdleConn(pc)
 	}
 	if err != nil {
-		fmt.Println("Some kind of dialConn err?")
 		t.decConnsPerHost(w.key)
 	}
 }
@@ -1549,8 +1525,6 @@ func (t *Transport) decConnsPerHost(key connectMethodKey) {
 // The remote endpoint's name may be overridden by TLSClientConfig.ServerName.
 func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptrace.ClientTrace) error {
 	// Initiate TLS and check remote host name against certificate.
-	fmt.Println("addTLS() called!")
-
 	cfg := cloneTLSConfig(pconn.t.TLSClientConfig)
 	if cfg.ServerName == "" {
 		cfg.ServerName = name
@@ -1558,8 +1532,6 @@ func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptr
 	if pconn.cacheKey.onlyH1 {
 		cfg.NextProtos = nil
 	}
-
-	fmt.Println(cfg.ServerName)
 
 	plainConn := pconn.conn
 	// tlsConn := tls.Client(plainConn, cfg) // This returns a tls.Conn. Should probably edit to be a tls.UConn.
@@ -1578,8 +1550,6 @@ func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptr
 	//   if err := tlsConn.ApplyPreset(generatedSpec); err != nil {
 	// 	panic(err)
 	//   }
-
-	fmt.Println(tlsConn)
 
 	// 🚩 WILL HAVE TO EDIT THIS FUNCTION TO WORK WITH UTLS
 
@@ -1639,9 +1609,6 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		return err
 	}
 
-	fmt.Println(cm.scheme())
-	fmt.Println(t.hasCustomTLSDialer())
-
 	if cm.scheme() == "https" && t.hasCustomTLSDialer() {
 		// Non working code!
 		var err error
@@ -1649,22 +1616,16 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		// ^ This is the line that is causing the problem.
 
 		if err != nil {
-			fmt.Println("Error in customDialTLS: ", err)
 			return nil, wrapErr(err)
 		}
-
-		// fmt.Println("pconn.conn: ", pconn.conn)
 
 		if tc, ok := pconn.conn.(*tls.UConn); ok {
 			// Handshake here, in case DialTLS didn't. TLSNextProto below
 			// depends on it for knowing the connection state.
-			fmt.Println("Handshake here, in case DialTLS didn't. TLSNextProto below depends on it for knowing the connection state.")
 			if trace != nil && trace.TLSHandshakeStart != nil {
-				fmt.Println("TLSHandshakeStart()")
 				trace.TLSHandshakeStart()
 			}
 			if err := tc.HandshakeContext(ctx); err != nil {
-				fmt.Println("pconn.conn.close()")
 				go pconn.conn.Close()
 				if trace != nil && trace.TLSHandshakeDone != nil {
 					trace.TLSHandshakeDone(tls.ConnectionState{}, err)
@@ -1673,7 +1634,6 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			}
 			cs := tc.ConnectionState()
 			if trace != nil && trace.TLSHandshakeDone != nil {
-				fmt.Println("TLSHandshakeDone()")
 				trace.TLSHandshakeDone(cs, nil)
 			}
 			pconn.tlsState = &cs
@@ -1686,8 +1646,6 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		}
 		pconn.conn = conn
 
-		fmt.Println("Working Transport Connection: ", pconn.conn)
-
 		if cm.scheme() == "https" {
 			var firstTLSHost string
 			if firstTLSHost, _, err = net.SplitHostPort(cm.addr()); err != nil {
@@ -1699,13 +1657,10 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		}
 	}
 
-	fmt.Println("Handling proxy setup step...")
-
 	// Proxy setup.
 	switch {
 	case cm.proxyURL == nil:
 		// Do nothing. Not using a proxy.
-		fmt.Println("Not using a proxy...")
 	case cm.proxyURL.Scheme == "socks5":
 		conn := pconn.conn
 		d := socksNewDialer("tcp", conn.RemoteAddr().String())
@@ -1810,28 +1765,19 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 	}
 
 	if cm.proxyURL != nil && cm.targetScheme == "https" {
-		fmt.Println("Adding TLS")
 		if err := pconn.addTLS(ctx, cm.tlsHost(), trace); err != nil {
 			return nil, err
 		}
 	}
 
-	fmt.Println("Finished proxy setup!")
-	// fmt.Println("pconn.tlsState: ", pconn.tlsState)
-	fmt.Println("Negotiated protocol is: ", pconn.tlsState.NegotiatedProtocol)
-
 	if s := pconn.tlsState; s != nil {
-		fmt.Println("TLSNextProto Map structure: ", t.TLSNextProto)
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok { // This returns a roundtripper to handle the request.
 			alt := next(cm.targetAddr, pconn.conn.(*tls.UConn)) // This uses the roundtripper to handle the request.
-			fmt.Println("alt: ", alt)
 			if e, ok := alt.(erringRoundTripper); ok {
 				// pconn.conn was closed by next (http2configureTransports.upgradeFn).
 				return nil, e.RoundTripErr()
 			}
 			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
-		} else {
-			fmt.Println("Despair...")
 		}
 	}
 
