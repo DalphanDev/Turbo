@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/DalphanDev/Turbo/http"
+	"github.com/DalphanDev/Turbo/http/cookiejar"
 	"github.com/andybalholm/brotli"
 )
 
@@ -31,8 +32,13 @@ type TurboResponse struct {
 
 func NewTurboClient(proxy string) *TurboClient {
 	transport := &http.Transport{}
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		panic(err)
+	}
 	client := &http.Client{
 		Transport: transport,
+		Jar:       jar,
 	}
 
 	if proxy != "" {
@@ -85,6 +91,7 @@ func (tc *TurboClient) Do(method string, options RequestOptions) (*TurboResponse
 		req.Header.Set(key, value)
 	}
 
+	// [turbo] - it depends on the proxy server. Some want this kind of authorization, some don't.
 	// if tc.proxyURL != nil && tc.proxyUsername != "" && tc.proxyPassword != "" {
 	// 	auth := tc.proxyUsername + ":" + tc.proxyPassword
 	// 	fmt.Println(auth)
