@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	"github.com/DalphanDev/Turbo/http"
 	"github.com/andybalholm/brotli"
@@ -129,13 +130,15 @@ func main() {
 		"User-Agent": "Custom User Agent", // This will overwrite the default User-Agent header
 	}
 
+	body := "your string data"
+
 	options := RequestOptions{
-		URL:     "https://www.whatismybrowser.com/detect/what-is-my-user-agent/",
+		URL:     "https://eoobxe7m89qj9cl.m.pipedream.net",
 		Headers: headers,
-		Body:    nil,
+		Body:    strings.NewReader(body), // Can either use nil or a string reader.
 	}
 
-	resp, err := client.Do("GET", options)
+	resp, err := client.Do("POST", options)
 	if err != nil {
 		panic(err)
 	}
