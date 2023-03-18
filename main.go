@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"strings"
 
 	"github.com/DalphanDev/Turbo/http"
@@ -13,6 +14,7 @@ import (
 
 type TurboClient struct {
 	client *http.Client
+	proxy  *url.URL
 }
 
 type RequestOptions struct {
@@ -27,13 +29,27 @@ type TurboResponse struct {
 	Body       string
 }
 
-func NewTurboClient() *TurboClient {
+func NewTurboClient(proxy string) *TurboClient {
 	transport := &http.Transport{}
 	client := &http.Client{
 		Transport: transport,
 	}
+
+	if proxy != "" {
+		proxyURL, err := parseProxy(proxy)
+		if err != nil {
+			panic(err)
+		}
+		transport.Proxy = http.ProxyURL(proxyURL)
+		return &TurboClient{
+			client: client,
+			proxy:  proxyURL,
+		}
+	}
+
 	return &TurboClient{
 		client: client,
+		proxy:  nil,
 	}
 }
 
@@ -68,6 +84,14 @@ func (tc *TurboClient) Do(method string, options RequestOptions) (*TurboResponse
 	for key, value := range options.Headers {
 		req.Header.Set(key, value)
 	}
+
+	// if tc.proxyURL != nil && tc.proxyUsername != "" && tc.proxyPassword != "" {
+	// 	auth := tc.proxyUsername + ":" + tc.proxyPassword
+	// 	fmt.Println(auth)
+	// 	encodedAuth := base64.StdEncoding.EncodeToString([]byte(auth))
+	// 	fmt.Println(encodedAuth)
+	// 	req.Header.Set("Proxy-Authenticate", "Basic "+encodedAuth)
+	// }
 
 	resp, err := tc.client.Do(req)
 	if err != nil {
@@ -123,8 +147,30 @@ func mergeHeaders(defaultHeaders, customHeaders map[string]string) map[string]st
 	return mergedHeaders
 }
 
+func parseProxy(proxyString string) (*url.URL, error) {
+	components := strings.Split(proxyString, ":")
+
+	if len(components) != 4 {
+		return nil, fmt.Errorf("invalid proxy string format")
+	}
+
+	ip := components[0]
+	port := components[1]
+	username := components[2]
+	password := components[3]
+
+	proxyURL := fmt.Sprintf("http://%s:%s@%s:%s", username, password, ip, port)
+	// proxyURL, err := url.Parse(proxyURL)
+	parsedProxyURL, err := url.Parse(proxyURL)
+	if err != nil {
+		panic(err)
+	}
+	return parsedProxyURL, nil
+}
+
 func main() {
-	client := NewTurboClient()
+	// Example proxy: 207.90.213.151:15413:egvrca423:qhYCz8388o
+	client := NewTurboClient("207.90.213.151:15413:egvrca423:qhYCz8388o")
 
 	headers := map[string]string{
 		"User-Agent": "Custom User Agent", // This will overwrite the default User-Agent header
