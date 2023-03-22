@@ -5,13 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/DalphanDev/Turbo/src"
 )
+
+type ClientResponse struct {
+	Command string `json:"command"`
+	Client  string `json:"client"`
+}
 
 func main() {
 	inputReader := bufio.NewReader(os.Stdin)
-	fmt.Println("Hello from bridge.go!")
 	for {
-		fmt.Println("Did this loop even run?")
 		inputData, err := inputReader.ReadString('\n')
 		if err != nil {
 			fmt.Printf("Error reading input: %v", err)
@@ -30,9 +35,16 @@ func main() {
 
 		switch command {
 		case "new_client":
-			// proxy := taskData["proxy"].(string)
-			// result = createTurboClient(proxy)
 			fmt.Println("Creating a new client...")
+			proxy := taskData["proxy"].(string)
+			client := src.NewTurboClient(proxy)
+			stringifiedClient := fmt.Sprintf("%p", client)
+			result = ClientResponse{
+				Command: command,
+				Client:  stringifiedClient,
+			}
+			fmt.Println(result)
+
 		// Add more cases for other functions as needed
 		default:
 			fmt.Printf("Invalid command: %s", command)
