@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/andybalholm/brotli v1.0.5 // indirect
+	github.com/google/uuid v1.3.0
 	github.com/klauspost/compress v1.16.0 // indirect
 	github.com/refraction-networking/utls v1.2.2 // indirect
 	golang.org/x/crypto v0.6.0 // indirect
