@@ -51,6 +51,10 @@ for (let i = 0; i < numWorkers; i++) {
         JSON.stringify({
           command: "do",
           clientID: myClient,
+          url: "https://dalphan.myshopify.com/",
+          body: "",
+          headers: "",
+          method: "GET",
         }) + "\n"
       );
     }

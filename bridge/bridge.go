@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/DalphanDev/Turbo/http"
 	"github.com/DalphanDev/Turbo/src"
 	"github.com/google/uuid"
 )
@@ -16,8 +18,11 @@ type ClientResponse struct {
 }
 
 type DoResponse struct {
-	Command  string `json:"command"`
-	ClientID string `json:"clientID"`
+	Command    string      `json:"command"`
+	ClientID   string      `json:"clientID"`
+	StatusCode int         `json:"statusCode"`
+	Headers    http.Header `json:"headers"`
+	Body       string      `json:"body"`
 }
 
 func main() {
@@ -42,6 +47,7 @@ func main() {
 
 		switch command {
 		case "new_client":
+			// Creating an turbo client...
 			proxy := taskData["proxy"].(string)
 			client := src.NewTurboClient(proxy)
 			clientID := uuid.New().String()
@@ -50,34 +56,35 @@ func main() {
 				Command:  command,
 				ClientID: clientID,
 			}
-			// fmt.Println(result)
 
 		case "do":
-			// fmt.Println("Sending a request...")
-			// url := taskData["url"].(string)
-			// method := taskData["method"].(string)
+			// Sending a request...
+			url := taskData["url"].(string)
+			method := taskData["method"].(string)
 			// headers := taskData["headers"].(string)
-			// body := taskData["body"].(string)
+			body := taskData["body"].(string)
 			clientID := taskData["clientID"].(string)
-			// fmt.Println(url)
-			// fmt.Println(method)
-			// fmt.Println(headers)
-			// fmt.Println(body)
-			// fmt.Println(clientID)
+
+			myClient := clients[clientID]
+
+			options := src.RequestOptions{
+				URL:     url,
+				Headers: nil,
+				Body:    strings.NewReader(body), // Can either use nil or a string reader.
+			}
+
+			resp, err := myClient.Do(method, options)
+			if err != nil {
+				panic(err)
+			}
 
 			result = DoResponse{
-				Command:  command,
-				ClientID: clientID,
+				Command:    command,
+				ClientID:   clientID,
+				StatusCode: resp.StatusCode,
+				Headers:    resp.Headers,
+				Body:       resp.Body,
 			}
-			// fmt.Println(result)
-
-			// options := src.RequestOptions{
-			// 	URL:     "https://eoobxe7m89qj9cl.m.pipedream.net",
-			// 	Headers: nil,
-			// 	Body:    strings.NewReader(body), // Can either use nil or a string reader.
-			// }
-
-			// resp, err := client.Do(method, options)
 
 		default:
 			fmt.Printf("Invalid command: %s", command)
