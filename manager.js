@@ -13,7 +13,7 @@ const command = {
 
 const command2 = {
   command: "do",
-  url: "https://www.dalphan.dev/",
+  url: "https://eoobxe7m89qj9cl.m.pipedream.net/",
   method: "GET",
   headers: "",
   body: "",
@@ -24,7 +24,9 @@ const command3 = {
   command: "do",
   url: "https://www.dalphan.dev/",
   method: "POST",
-  headers: "",
+  headers: {
+    "User-Agent": "Inside Peanut Butter",
+  },
   body: "",
 };
 
@@ -51,9 +53,11 @@ for (let i = 0; i < numWorkers; i++) {
         JSON.stringify({
           command: "do",
           clientID: myClient,
-          url: "https://dalphan.myshopify.com/",
+          url: "https://eoobxe7m89qj9cl.m.pipedream.net/",
           body: "",
-          headers: "",
+          headers: {
+            "User-Agent": "Inside Peanut Butter",
+          },
           method: "GET",
         }) + "\n"
       );

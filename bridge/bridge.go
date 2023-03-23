@@ -61,7 +61,13 @@ func main() {
 			// Sending a request...
 			url := taskData["url"].(string)
 			method := taskData["method"].(string)
-			// headers := taskData["headers"].(string)
+
+			headersInterface := taskData["headers"].(map[string]interface{})
+			headers := make(map[string]string)
+			for key, value := range headersInterface {
+				headers[key] = value.(string)
+			}
+
 			body := taskData["body"].(string)
 			clientID := taskData["clientID"].(string)
 
@@ -69,7 +75,7 @@ func main() {
 
 			options := src.RequestOptions{
 				URL:     url,
-				Headers: nil,
+				Headers: headers,
 				Body:    strings.NewReader(body), // Can either use nil or a string reader.
 			}
 
