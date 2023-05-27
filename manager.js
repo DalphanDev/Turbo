@@ -1,5 +1,6 @@
 const { spawn } = require("child_process");
 const path = require("path");
+const { performance } = require("perf_hooks");
 const numWorkers = 1; // Adjust based on your system resources and workload
 const taskQueue = [];
 const workers = [];
@@ -8,7 +9,7 @@ let myClient = null;
 
 const command = {
   command: "new_client",
-  proxy: "207.90.213.151:15413:egvrca423:qhYCz8388o",
+  proxy: "",
 };
 
 const command2 = {
@@ -38,6 +39,7 @@ for (let i = 0; i < numWorkers; i++) {
   const worker = spawn(bridgePath);
   worker.isIdle = true;
 
+  const startTime = performance.now();
   worker.stdin.write(JSON.stringify(command) + "\n");
 
   worker.stdout.on("data", (data) => {
@@ -45,6 +47,14 @@ for (let i = 0; i < numWorkers; i++) {
     console.log(`Worker ${i}: ${data}`);
 
     const parsedData = JSON.parse(data);
+
+    console.log(parsedData);
+
+    if (parsedData.command === "do") {
+      const endTime = performance.now();
+      const duration = endTime - startTime;
+      console.log(`Request duration: ${duration} milliseconds`);
+    }
 
     if (parsedData.command === "new_client") {
       myClient = parsedData.clientID;
@@ -65,7 +75,7 @@ for (let i = 0; i < numWorkers; i++) {
   });
 
   worker.stderr.on("data", (data) => {
-    console.error(`Worker ${i}: ${data}`);
+    console.error(`Error at Worker ${i}: ${data}`);
   });
 
   worker.on("spawn", () => {
