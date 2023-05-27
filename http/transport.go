@@ -1525,6 +1525,10 @@ func (t *Transport) decConnsPerHost(key connectMethodKey) {
 // The remote endpoint's name may be overridden by TLSClientConfig.ServerName.
 func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptrace.ClientTrace) error {
 	// Initiate TLS and check remote host name against certificate.
+
+	// [Turbo] - Force InsecureSkipVerify
+	pconn.t.TLSClientConfig.InsecureSkipVerify = true
+
 	cfg := cloneTLSConfig(pconn.t.TLSClientConfig)
 	if cfg.ServerName == "" {
 		cfg.ServerName = name
