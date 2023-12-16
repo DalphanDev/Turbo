@@ -2980,6 +2980,8 @@ func (fr *http2Framer) readMetaFrame(hf *http2HeadersFrame) (*http2MetaHeadersFr
 	for {
 		frag := hc.HeaderBlockFragment()
 		if _, err := hdec.Write(frag); err != nil {
+			// fmt.Println("COMPRESSION ERROR HERE!")
+			fmt.Println(err)
 			return nil, http2ConnectionError(http2ErrCodeCompression)
 		}
 
@@ -2997,6 +2999,7 @@ func (fr *http2Framer) readMetaFrame(hf *http2HeadersFrame) (*http2MetaHeadersFr
 	mh.http2HeadersFrame.invalidate()
 
 	if err := hdec.Close(); err != nil {
+		// fmt.Println("COMPRESSION ERROR OVER HERE!!!")
 		return nil, http2ConnectionError(http2ErrCodeCompression)
 	}
 	if invalid != nil {
@@ -7887,7 +7890,7 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 
 	// [turbo] - Edit these settings to mimic chrome
 	initialSettings := []http2Setting{
-		{ID: http2SettingHeaderTableSize, Val: 65536},
+		{ID: http2SettingHeaderTableSize, Val: 4096},
 		{ID: http2SettingEnablePush, Val: 0},
 		{ID: http2SettingMaxConcurrentStreams, Val: 1000},
 		{ID: http2SettingInitialWindowSize, Val: 6291456},

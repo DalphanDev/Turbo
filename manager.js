@@ -63,7 +63,7 @@ for (let i = 0; i < numWorkers; i++) {
         JSON.stringify({
           command: "do",
           clientID: myClient,
-          url: "https://eoobxe7m89qj9cl.m.pipedream.net/",
+          url: "https://deposit.us.shopifycs.com/sessions",
           body: "",
           headers: {
             "User-Agent": "Inside Peanut Butter",
