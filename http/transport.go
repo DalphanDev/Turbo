@@ -21,7 +21,6 @@ import (
 	"net"
 	"net/textproto"
 	"net/url"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -41,8 +40,8 @@ import (
 // DefaultTransport is the default implementation of Transport and is
 // used by DefaultClient. It establishes network connections as needed
 // and caches them for reuse by subsequent calls. It uses HTTP proxies
-// as directed by the $HTTP_PROXY and $NO_PROXY (or $http_proxy and
-// $no_proxy) environment variables.
+// as directed by the environment variables HTTP_PROXY, HTTPS_PROXY
+// and NO_PROXY (or the lowercase versions thereof).
 var DefaultTransport RoundTripper = &Transport{
 	Proxy: ProxyFromEnvironment,
 	DialContext: defaultTransportDialContext(&net.Dialer{
@@ -88,13 +87,13 @@ const DefaultMaxIdleConnsPerHost = 2
 // ClientTrace.Got1xxResponse.
 //
 // Transport only retries a request upon encountering a network error
-// if the request is idempotent and either has no body or has its
-// Request.GetBody defined. HTTP requests are considered idempotent if
-// they have HTTP methods GET, HEAD, OPTIONS, or TRACE; or if their
-// Header map contains an "Idempotency-Key" or "X-Idempotency-Key"
-// entry. If the idempotency key value is a zero-length slice, the
-// request is treated as idempotent but the header is not sent on the
-// wire.
+// if the connection has been already been used successfully and if the
+// request is idempotent and either has no body or has its Request.GetBody
+// defined. HTTP requests are considered idempotent if they have HTTP methods
+// GET, HEAD, OPTIONS, or TRACE; or if their Header map contains an
+// "Idempotency-Key" or "X-Idempotency-Key" entry. If the idempotency key
+// value is a zero-length slice, the request is treated as idempotent but the
+// header is not sent on the wire.
 type Transport struct {
 	idleMu       sync.Mutex
 	closeIdle    bool                                // user has requested to close all idle conns
@@ -112,6 +111,8 @@ type Transport struct {
 	connsPerHost     map[connectMethodKey]int
 	connsPerHostWait map[connectMethodKey]wantConnQueue // waiting getConns
 
+	MimicSetting string // [Turbo] - Added so multiple mimics can be used
+
 	// Proxy specifies a function to return a proxy for a given
 	// Request. If the function returns a non-nil error, the
 	// request is aborted with the provided error.
@@ -122,6 +123,11 @@ type Transport struct {
 	//
 	// If Proxy is nil or returns a nil *URL, no proxy is used.
 	Proxy func(*Request) (*url.URL, error)
+
+	// OnProxyConnectResponse is called when the Transport gets an HTTP response from
+	// a proxy for a CONNECT request. It's called before the check for a 200 OK response.
+	// If it returns an error, the request fails with that error.
+	OnProxyConnectResponse func(ctx context.Context, proxyURL *url.URL, connectReq *Request, connectRes *Response) error
 
 	// DialContext specifies the dial function for creating unencrypted TCP connections.
 	// If DialContext is nil (and the deprecated Dial below is also nil),
@@ -171,7 +177,7 @@ type Transport struct {
 	// If non-nil, HTTP/2 support may not be enabled by default.
 	TLSClientConfig *tls.Config
 
-	// TLSHandshakeTimeout specifies the maximum amount of time waiting to
+	// TLSHandshakeTimeout specifies the maximum amount of time to
 	// wait for a TLS handshake. Zero means no timeout.
 	TLSHandshakeTimeout time.Duration
 
@@ -312,6 +318,7 @@ func (t *Transport) Clone() *Transport {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
 	t2 := &Transport{
 		Proxy:                  t.Proxy,
+		OnProxyConnectResponse: t.OnProxyConnectResponse,
 		DialContext:            t.DialContext,
 		Dial:                   t.Dial,
 		DialTLS:                t.DialTLS,
@@ -359,13 +366,16 @@ func (t *Transport) hasCustomTLSDialer() bool {
 	return t.DialTLS != nil || t.DialTLSContext != nil
 }
 
+// var http2client = godebug.New("http2client")
+
 // onceSetNextProtoDefaults initializes TLSNextProto.
 // It must be called via t.nextProtoOnce.Do.
 func (t *Transport) onceSetNextProtoDefaults() {
 	t.tlsNextProtoWasNil = (t.TLSNextProto == nil)
-	if strings.Contains(os.Getenv("GODEBUG"), "http2client=0") {
-		return
-	}
+	// if http2client.Value() == "0" {
+	// 	http2client.IncNonDefault()
+	// 	return
+	// }
 
 	// If they've already configured http2 with
 	// golang.org/x/net/http2 instead of the bundled copy, try to
@@ -429,8 +439,8 @@ func (t *Transport) onceSetNextProtoDefaults() {
 // ProxyFromEnvironment returns the URL of the proxy to use for a
 // given request, as indicated by the environment variables
 // HTTP_PROXY, HTTPS_PROXY and NO_PROXY (or the lowercase versions
-// thereof). HTTPS_PROXY takes precedence over HTTP_PROXY for https
-// requests.
+// thereof). Requests use the proxy from the environment variable
+// matching their scheme, unless excluded by NO_PROXY.
 //
 // The environment values may be either a complete URL or a
 // "host[:port]", in which case the "http" scheme is assumed.
@@ -586,22 +596,19 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		// host (for http or https), the http proxy, or the http proxy
 		// pre-CONNECTed to https server. In any case, we'll be ready
 		// to send it requests.
-		pconn, err := t.getConn(treq, cm) // Gets a connection to the server
+		pconn, err := t.getConn(treq, cm)
 		if err != nil {
-			fmt.Println("Error getting connection: ", err)
 			t.setReqCanceler(cancelKey, nil)
 			req.closeBody()
 			return nil, err
 		}
 
 		var resp *Response
-
 		if pconn.alt != nil {
 			// HTTP/2 path.
 			t.setReqCanceler(cancelKey, nil) // not cancelable with CancelRequest
 			resp, err = pconn.alt.RoundTrip(req)
 		} else {
-			// HTTP/1.1 path.
 			resp, err = pconn.roundTrip(treq)
 		}
 		if err == nil {
@@ -622,6 +629,12 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 			}
 			if e, ok := err.(transportReadFromServerError); ok {
 				err = e.err
+			}
+			if b, ok := req.Body.(*readTrackingBody); ok && !b.didClose {
+				// Issue 49621: Close the request body if pconn.roundTrip
+				// didn't do so already. This can happen if the pconn
+				// write loop exits without reading the write request.
+				req.closeBody()
 			}
 			return nil, err
 		}
@@ -820,14 +833,12 @@ func (t *Transport) cancelRequest(key cancelKey, err error) bool {
 //
 
 var (
-	// proxyConfigOnce guards proxyConfig
 	envProxyOnce      sync.Once
 	envProxyFuncValue func(*url.URL) (*url.URL, error)
 )
 
-// defaultProxyConfig returns a ProxyConfig value looked up
-// from the environment. This mitigates expensive lookups
-// on some platforms (e.g. Windows).
+// envProxyFunc returns a function that reads the
+// environment variable to determine the proxy address.
 func envProxyFunc() func(*url.URL) (*url.URL, error) {
 	envProxyOnce.Do(func() {
 		envProxyFuncValue = httpproxy.FromEnvironment().ProxyFunc()
@@ -1177,7 +1188,11 @@ var zeroDialer net.Dialer
 
 func (t *Transport) dial(ctx context.Context, network, addr string) (net.Conn, error) {
 	if t.DialContext != nil {
-		return t.DialContext(ctx, network, addr)
+		c, err := t.DialContext(ctx, network, addr)
+		if c == nil && err == nil {
+			err = errors.New("net/http: Transport.DialContext hook returned (nil, nil)")
+		}
+		return c, err
 	}
 	if t.Dial != nil {
 		c, err := t.Dial(network, addr)
@@ -1325,14 +1340,14 @@ func (q *wantConnQueue) cleanFront() (cleaned bool) {
 
 func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (conn *tls.UConn, err error) {
 	if t.DialTLSContext != nil {
-		// conn, err = t.DialTLSContext(ctx, network, addr) // This should never run
+		// conn, err = t.DialTLSContext(ctx, network, addr)
 	} else {
 		conn, err = t.DialTLS(network, addr)
 	}
 	if conn == nil && err == nil {
 		err = errors.New("net/http: Transport.DialTLS or DialTLSContext returned (nil, nil)")
 	}
-	return conn, err
+	return
 }
 
 // getConn dials and creates a new persistConn to the target as
@@ -1536,26 +1551,27 @@ func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptr
 	if pconn.cacheKey.onlyH1 {
 		cfg.NextProtos = nil
 	}
-
 	plainConn := pconn.conn
-	// tlsConn := tls.Client(plainConn, cfg) // This returns a tls.Conn. Should probably edit to be a tls.UConn.
 
 	// [Turbo] Edit tlsConn to use uTLS
 	cfg.InsecureSkipVerify = true
 	// tlsConn := tls.UClient(plainConn, cfg, tls.HelloChrome_Auto)
 	// tlsConn := tls.UClient(plainConn, cfg, tls.HelloFirefox_105)
 	tlsConn := tls.UClient(plainConn, cfg, tls.HelloCustom)
-	tlsConn.ApplyPreset(mimic.NewChromeMimic.ClientHello())
-	// fingerprinter := &tls.Fingerprinter{}
-	// generatedSpec, err := fingerprinter.FingerprintClientHello(rawCapturedClientHelloBytes)
-	// if err != nil {
-	// 	panic(err)
-	//   }
-	//   if err := tlsConn.ApplyPreset(generatedSpec); err != nil {
-	// 	panic(err)
-	//   }
 
-	// 🚩 WILL HAVE TO EDIT THIS FUNCTION TO WORK WITH UTLS
+	// We need to have a way to figure our which preset to use.
+	// Using the preset, we can generate a ClientHello.
+	// To figure out which preset to use
+
+	if pconn.t.MimicSetting == "chrome" {
+		tlsConn.ApplyPreset(mimic.NewChromeMimic.ClientHello())
+	} else if pconn.t.MimicSetting == "nike" {
+		tlsConn.ApplyPreset(mimic.NewChromeMimic.ClientHello())
+	} else if pconn.t.MimicSetting == "goat" {
+		tlsConn.ApplyPreset(mimic.NewGoatMimic.ClientHello())
+	} else {
+		tlsConn.ApplyPreset(mimic.NewChromeMimic.ClientHello())
+	}
 
 	errc := make(chan error, 2)
 	var timer *time.Timer // for canceling TLS handshake
@@ -1612,17 +1628,12 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		}
 		return err
 	}
-
 	if cm.scheme() == "https" && t.hasCustomTLSDialer() {
-		// Non working code!
 		var err error
-		pconn.conn, err = t.customDialTLS(ctx, "tcp", cm.addr()) // 🚩 After dialTLS is called, this returns the tls connection.
-		// ^ This is the line that is causing the problem.
-
+		pconn.conn, err = t.customDialTLS(ctx, "tcp", cm.addr())
 		if err != nil {
 			return nil, wrapErr(err)
 		}
-
 		if tc, ok := pconn.conn.(*tls.UConn); ok {
 			// Handshake here, in case DialTLS didn't. TLSNextProto below
 			// depends on it for knowing the connection state.
@@ -1643,13 +1654,11 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			pconn.tlsState = &cs
 		}
 	} else {
-		// Working code!
 		conn, err := t.dial(ctx, "tcp", cm.addr())
 		if err != nil {
 			return nil, wrapErr(err)
 		}
 		pconn.conn = conn
-
 		if cm.scheme() == "https" {
 			var firstTLSHost string
 			if firstTLSHost, _, err = net.SplitHostPort(cm.addr()); err != nil {
@@ -1758,6 +1767,14 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 			conn.Close()
 			return nil, err
 		}
+
+		if t.OnProxyConnectResponse != nil {
+			err = t.OnProxyConnectResponse(ctx, cm.proxyURL, connectReq, resp)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		if resp.StatusCode != 200 {
 			_, text, ok := strings.Cut(resp.Status, " ")
 			conn.Close()
@@ -1774,9 +1791,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		}
 	}
 
-	if s := pconn.tlsState; s != nil {
-		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok { // This returns a roundtripper to handle the request.
-			alt := next(cm.targetAddr, pconn.conn.(*tls.UConn)) // This uses the roundtripper to handle the request.
+	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
+		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
+			alt := next(cm.targetAddr, pconn.conn.(*tls.UConn))
 			if e, ok := alt.(erringRoundTripper); ok {
 				// pconn.conn was closed by next (http2configureTransports.upgradeFn).
 				return nil, e.RoundTripErr()
@@ -2085,7 +2102,7 @@ func (pc *persistConn) mapRoundTripError(req *transportRequest, startBytesWritte
 		if pc.nwrite == startBytesWritten {
 			return nothingWrittenError{err}
 		}
-		return fmt.Errorf("net/http: HTTP/1.x transport connection broken: %v", err)
+		return fmt.Errorf("net/http: HTTP/1.x transport connection broken: %w", err)
 	}
 	return err
 }
@@ -2292,7 +2309,7 @@ func (pc *persistConn) readLoopPeekFailLocked(peekErr error) {
 		// common case.
 		pc.closeLocked(errServerClosedIdle)
 	} else {
-		pc.closeLocked(fmt.Errorf("readLoopPeekFailLocked: %v", peekErr))
+		pc.closeLocked(fmt.Errorf("readLoopPeekFailLocked: %w", peekErr))
 	}
 }
 
@@ -2426,6 +2443,10 @@ type nothingWrittenError struct {
 	error
 }
 
+func (nwe nothingWrittenError) Unwrap() error {
+	return nwe.error
+}
+
 func (pc *persistConn) writeLoop() {
 	defer close(pc.writeLoopDone)
 	for {
@@ -2467,7 +2488,10 @@ func (pc *persistConn) writeLoop() {
 // maxWriteWaitBeforeConnReuse is how long the a Transport RoundTrip
 // will wait to see the Request's Body.Write result after getting a
 // response from the server. See comments in (*persistConn).wroteRequest.
-const maxWriteWaitBeforeConnReuse = 50 * time.Millisecond
+//
+// In tests, we set this to a large value to avoid flakiness from inconsistent
+// recycling of connections.
+var maxWriteWaitBeforeConnReuse = 50 * time.Millisecond
 
 // wroteRequest is a check before recycling a connection that the previous write
 // (from writeLoop above) happened and was successful.
@@ -2663,7 +2687,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 				req.logf("writeErrCh resv: %T/%#v", err, err)
 			}
 			if err != nil {
-				pc.close(fmt.Errorf("write error: %v", err))
+				pc.close(fmt.Errorf("write error: %w", err))
 				return nil, pc.mapRoundTripError(req, startBytesWritten, err)
 			}
 			if d := pc.t.ResponseHeaderTimeout; d > 0 {
@@ -2765,17 +2789,21 @@ var portMap = map[string]string{
 	"socks5": "1080",
 }
 
-// canonicalAddr returns url.Host but always with a ":port" suffix
-func canonicalAddr(url *url.URL) string {
+func idnaASCIIFromURL(url *url.URL) string {
 	addr := url.Hostname()
 	if v, err := idnaASCII(addr); err == nil {
 		addr = v
 	}
+	return addr
+}
+
+// canonicalAddr returns url.Host but always with a ":port" suffix.
+func canonicalAddr(url *url.URL) string {
 	port := url.Port()
 	if port == "" {
 		port = portMap[url.Scheme]
 	}
-	return net.JoinHostPort(addr, port)
+	return net.JoinHostPort(idnaASCIIFromURL(url), port)
 }
 
 // bodyEOFSignal is used by the HTTP/1 transport when reading response
